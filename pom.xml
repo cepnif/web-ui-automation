@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.saucedemo</groupId>
+    <artifactId>web-ui-automation</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <!-- Java / Build -->
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Core versions -->
+        <playwright.version>1.57.0</playwright.version>
+        <cucumber.version>7.33.0</cucumber.version>
+        <junit5.version>5.14.1</junit5.version>
+        <surefire.version>3.5.4</surefire.version>
+
+        <!-- Logging -->
+        <slf4j.version>2.0.17</slf4j.version>
+        <logback.version>1.5.23</logback.version>
+
+        <!-- Test data -->
+        <jackson.version>2.20.1</jackson.version>
+
+        <!-- Default execution controls (CI can override) -->
+        <env>test</env>
+        <browser>chromium</browser>
+        <headless>true</headless>
+        <cucumber.tags>@smoke</cucumber.tags>
+
+        <!-- Report locations (CI-friendly, artefact-ready) -->
+        <results.dir>test-results</results.dir>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Keep all Cucumber modules on the same version -->
+            <dependency>
+                <groupId>io.cucumber</groupId>
+                <artifactId>cucumber-bom</artifactId>
+                <version>${cucumber.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Keep JUnit 5 modules consistent -->
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit5.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Keep Jackson modules consistent -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Playwright: cross-browser (Chromium / Firefox / WebKit) -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- BDD: Cucumber + JUnit Platform Engine -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit-platform-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- DI for step classes (cleaner architecture, less shared state) -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-picocontainer</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Assertions (optional but practical) -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.6</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Test data management -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Logging (step-by-step/action-by-action logging foundation) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit Platform Suite (Cucumber @Suite runner) -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite-api</artifactId>
+            <version>1.14.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite-engine</artifactId>
+            <version>1.14.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <!-- Enforce Java 21 (prevents “works on my machine” issues in CI) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-java</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[21,)</version>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Test execution + CI-friendly reports + properties-based config -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+                <configuration>
+                    <!-- Keep it simple/reliable for test frameworks -->
+                    <useModulePath>false</useModulePath>
+
+                    <!-- Reduce Surefire/native stream issues in CI by redirecting test output -->
+                    <forkCount>1</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+
+                    <!-- JUnit XML for CI test reporting -->
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+
+                    <!-- More diagnosable output when failures occur -->
+                    <trimStackTrace>false</trimStackTrace>
+                    <printSummary>true</printSummary>
+
+                    <!-- These are defaults; CI can override via -D... -->
+                    <systemPropertyVariables>
+                        <!-- Execution controls -->
+                        <env>${env}</env>
+                        <browser>${browser}</browser>
+                        <headless>${headless}</headless>
+
+                        <!-- Cucumber filtering and reporting -->
+                        <cucumber.filter.tags>${cucumber.tags}</cucumber.filter.tags>
+                        <cucumber.plugin>
+                            pretty,
+                            html:${results.dir}/reports/cucumber.html,
+                            json:${results.dir}/reports/cucumber.json,
+                            junit:${results.dir}/junit-xml/cucumber.xml
+                        </cucumber.plugin>
+                        <cucumber.publish.quiet>true</cucumber.publish.quiet>
+                        <cucumber.filter.tags>${cucumber.tags}</cucumber.filter.tags>
+                    </systemPropertyVariables>
+
+                    <!-- Safe JVM default -->
+                    <argLine>-Dfile.encoding=UTF-8</argLine>
+
+                    <!-- Parallel execution will be controlled via JUnit Platform properties -->
+                    <parallel>none</parallel>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <!-- Helpful Maven profiles for cross-browser and CI -->
+    <profiles>
+        <profile>
+            <id>chromium</id>
+            <properties><browser>chromium</browser></properties>
+        </profile>
+        <profile>
+            <id>firefox</id>
+            <properties><browser>firefox</browser></properties>
+        </profile>
+        <profile>
+            <id>webkit</id>
+            <properties><browser>webkit</browser></properties>
+        </profile>
+        <profile>
+            <id>ci</id>
+            <properties><headless>true</headless></properties>
+        </profile>
+    </profiles>
+
+</project>
